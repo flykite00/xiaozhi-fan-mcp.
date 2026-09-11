@@ -2,13 +2,13 @@ import os
 from micloud import MiCloud
 from mcp.server.fastmcp import FastMCP
 
+# Tạo MCP Server
 mcp = FastMCP("Xiaozhi Cloud Fan")
 
-# BẠN BẮT BUỘC PHẢI SỬA DÒNG NÀY THÀNH MẬT KHẨU XIAOMI THẬT
+# BẠN ĐIỀN ĐÚNG TÀI KHOẢN VÀ MẬT KHẨU XIAOMI VÀO ĐÂY
 XIAOMI_USER = "flykite00@gmail.com"
-XIAOMI_PASS = "ĐIỀN_MẬT_KHẨU_XIAOMI_CỦA_BẠN_VÀO_ĐÂY" 
+XIAOMI_PASS = "MẬT_KHẨU_XIAOMI_CỦA_BẠN"  # <--- Thay mật khẩu thật tại đây
 
-# Mã định danh (DID) của 5 quạt trên Xiaomi Cloud
 FANS_DID = {
     "le_tan": "2052457320",
     "phong_khach": "2052470868",
@@ -17,30 +17,39 @@ FANS_DID = {
     "sofa": "2052458288"
 }
 
-def control_fan_cloud(location: str, power_on: bool) -> str:
-    did = FANS_DID.get(location)
-    if not did:
-        return f"Lỗi: Không có quạt nào ở {location}"
+def send_fan_command(did: str, power_on: bool):
+    """Đăng nhập và gửi lệnh tới Xiaomi Cloud khi có yêu cầu từ Xiaozhi"""
     try:
-        # Đăng nhập vào Mi Home
         mc = MiCloud(XIAOMI_USER, XIAOMI_PASS)
         mc.login()
-        # Gửi lệnh On/Off
         res = mc.set_props([{"did": did, "siid": 2, "piid": 1, "value": power_on}])
-        trang_thai = "BẬT" if power_on else "TẮT"
-        return f"Thành công: Đã {trang_thai} quạt {location}. (Mã: {res})"
+        return True, res
     except Exception as e:
-        return f"Lỗi Cloud: Có thể sai mật khẩu hoặc bị chặn ({str(e)})"
+        return False, str(e)
 
 @mcp.tool()
 def turn_on_fan(location: str = "sofa") -> str:
-    """Bật quạt. Vị trí: 'le_tan', 'phong_khach', 'pkt', 'phong_ngu', 'sofa'"""
-    return control_fan_cloud(location, True)
+    """Bật quạt ở vị trí: 'le_tan', 'phong_khach', 'pkt', 'phong_ngu', 'sofa'"""
+    did = FANS_DID.get(location)
+    if not did:
+        return f"Không tìm thấy vị trí {location}"
+    
+    success, res = send_fan_command(did, True)
+    if success:
+        return f"Đã BẬT quạt {location} thành công: {res}"
+    return f"Lỗi BẬT quạt {location}: {res}"
 
 @mcp.tool()
 def turn_off_fan(location: str = "sofa") -> str:
-    """Tắt quạt. Vị trí: 'le_tan', 'phong_khach', 'pkt', 'phong_ngu', 'sofa'"""
-    return control_fan_cloud(location, False)
+    """Tắt quạt ở vị trí: 'le_tan', 'phong_khach', 'pkt', 'phong_ngu', 'sofa'"""
+    did = FANS_DID.get(location)
+    if not did:
+        return f"Không tìm thấy vị trí {location}"
+    
+    success, res = send_fan_command(did, False)
+    if success:
+        return f"Đã TẮT quạt {location} thành công: {res}"
+    return f"Lỗi TẮT quạt {location}: {res}"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
